@@ -1,0 +1,51 @@
+From 37c9753770cfb85b7d1214729aad7c4668ba566d Mon Sep 17 00:00:00 2001
+From: Li Zhang <li.zhang@hxt-semitech.com>
+Date: Fri, 29 Jun 2018 18:11:37 +0800
+Subject: [PATCH 1/2] Set pagebits as TARGET_PAGE_BITS
+
+When initializing pagebits in cpu_releaze, we set it as
+TARGET_PAGE_BITS.
+It aligns with CPUs's pagebits when cpu hotplugged.
+
+Signed-off-by: Li Zhang <li.zhang@hxt-semitech.com>
+---
+ target/arm/cpu.c | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/target/arm/cpu.c b/target/arm/cpu.c
+index e1de45e..7d0356d 100644
+--- a/target/arm/cpu.c
++++ b/target/arm/cpu.c
+@@ -26,6 +26,7 @@
+ #include "internals.h"
+ #include "qemu-common.h"
+ #include "exec/exec-all.h"
++#include "exec/cpu-all.h"
+ #include "hw/qdev-properties.h"
+ #if !defined(CONFIG_USER_ONLY)
+ #include "hw/loader.h"
+@@ -851,19 +852,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
+         set_feature(env, ARM_FEATURE_THUMB_DSP);
+     }
+ 
+-    if (arm_feature(env, ARM_FEATURE_V7) &&
+-        !arm_feature(env, ARM_FEATURE_M) &&
+-        !arm_feature(env, ARM_FEATURE_PMSA)) {
+-        /* v7VMSA drops support for the old ARMv5 tiny pages, so we
+-         * can use 4K pages.
+-         */
+-        pagebits = 12;
+-    } else {
+-        /* For CPUs which might have tiny 1K pages, or which have an
+-         * MPU and might have small region sizes, stick with 1K pages.
+-         */
+-        pagebits = 10;
+-    }
++    pagebits = TARGET_PAGE_BITS;
++
+     if (!set_preferred_target_page_bits(pagebits)) {
+         /* This can only ever happen for hotplugging a CPU, or if
+          * the board code incorrectly creates a CPU which it has
+-- 
+1.8.3.1
+
