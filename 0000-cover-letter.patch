@@ -1,0 +1,29 @@
+From 4b7b371ff08311cced789d8db2d75275d51cac29 Mon Sep 17 00:00:00 2001
+From: Li Zhang <zhlcindy@gmail.com>
+Date: Wed, 18 Oct 2017 10:28:45 +0800
+Subject: [RFC PATCH 0/8] Refine CPU code and hotplug
+
+This is part of my QEMU source to refine CPU related code. 
+I didn't rebase it with latest code yet. I will do later 
+and finished the rest part of source code.
+
+Li Zhang (8):
+  arm/virt: Refine fdt_add_cpu_nodes code
+  Refind CPU related code
+  Implement get_hotplug_handler interface
+  Implement pre_plug callback function
+  Implement hc->plug call function
+  Set ARM CPUs as hotpluggable.
+  Add CPU topology for ARM architecture.
+  Refine mp_affinity related code
+
+ hw/arm/virt.c             | 535 +++++++++++++++++++++++++++++-----------------
+ include/hw/arm/topology.h |  86 ++++++++
+ target/arm/cpu.c          |  13 +-
+ target/arm/cpu.h          |   2 -
+ 4 files changed, 426 insertions(+), 210 deletions(-)
+ create mode 100644 include/hw/arm/topology.h
+
+-- 
+2.7.4
+

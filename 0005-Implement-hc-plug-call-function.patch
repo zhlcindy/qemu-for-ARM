@@ -1,0 +1,62 @@
+From c71fbd6b955a1772ae3867198e2be8447860157b Mon Sep 17 00:00:00 2001
+From: Li Zhang <zhlcindy@gmail.com>
+Date: Fri, 15 Sep 2017 11:20:11 +0800
+Subject: [RFC PATCH 5/8] Implement hc->plug call function
+
+This patch is to implement hc->plug call function.
+
+Signed-off-by: Li Zhang <zhlcindy@gmail.com>
+---
+ hw/arm/virt.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/hw/arm/virt.c b/hw/arm/virt.c
+index 2c46e84..f08fe60 100644
+--- a/hw/arm/virt.c
++++ b/hw/arm/virt.c
+@@ -1715,7 +1715,15 @@ static void virt_cpu_pre_plug(HotplugHandler *hotplug_dev,
+ out:
+     error_propagate(errp, local_err);
+ }
+-
++static void virt_cpu_plug(HotplugHandler *hotplug_dev,
++                          DeviceState *dev, Error **errp)
++{
++    CPUArchId *found_cpu;
++    ARMCPU *cpu = ARM_CPU(dev);
++    MachineState *ms = MACHINE(hotplug_dev);
++    found_cpu = virt_find_cpu_slot(ms, cpu->mp_affinity, NULL);
++    found_cpu->cpu = OBJECT(dev);
++}
+ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+                                             DeviceState *dev, Error **errp)
+ {
+@@ -1724,6 +1732,14 @@ static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
+     }
+ }
+ 
++static void virt_machine_device_plug_cb(HotplugHandler *hotplug_dev,
++                                            DeviceState *dev, Error **errp)
++{
++    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
++        virt_cpu_plug(hotplug_dev, dev, errp);
++    }
++}
++
+ static void virt_machine_class_init(ObjectClass *oc, void *data)
+ {
+     MachineClass *mc = MACHINE_CLASS(oc);
+@@ -1743,8 +1759,10 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
+     mc->minimum_page_bits = 12;
+     mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
+     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
++    mc->has_hotpluggable_cpus = true;
+     mc->get_hotplug_handler = virt_get_hotplug_handler;
+     hc->pre_plug = virt_machine_device_pre_plug_cb;
++    hc->plug = virt_machine_device_plug_cb;
+ }
+ 
+ static const TypeInfo virt_machine_info = {
+-- 
+2.7.4
+

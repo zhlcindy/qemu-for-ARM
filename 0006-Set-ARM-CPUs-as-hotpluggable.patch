@@ -1,0 +1,27 @@
+From 5aa0195ccf516be597e4e96b258ce2963e22173d Mon Sep 17 00:00:00 2001
+From: Li Zhang <zhlcindy@gmail.com>
+Date: Fri, 15 Sep 2017 11:22:17 +0800
+Subject: [RFC PATCH 6/8] Set ARM CPUs as hotpluggable.
+
+This patch is to set ARM CPUs as hotpluggable.
+
+Signed-off-by: Li Zhang <zhlcindy@gmail.com>
+---
+ target/arm/cpu.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/target/arm/cpu.c b/target/arm/cpu.c
+index c185eb1..e2ce51b 100644
+--- a/target/arm/cpu.c
++++ b/target/arm/cpu.c
+@@ -1648,6 +1648,7 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
+ #endif
+ 
+     cc->disas_set_info = arm_disas_set_info;
++    dc->user_creatable = true;
+ }
+ 
+ static void cpu_register(const ARMCPUInfo *info)
+-- 
+2.7.4
+

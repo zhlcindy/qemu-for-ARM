@@ -1,0 +1,55 @@
+From f427544acd509558675a46d23af01e2dcf575dc7 Mon Sep 17 00:00:00 2001
+From: Li Zhang <zhlcindy@gmail.com>
+Date: Thu, 7 Sep 2017 16:15:24 +0800
+Subject: [RFC PATCH 3/8] Implement get_hotplug_handler interface
+
+This patch is to add get_hotplug_handler interface for CPU hotplug.
+
+Signed-off-by: Li Zhang <zhlcindy@gmail.com>
+---
+ hw/arm/virt.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/hw/arm/virt.c b/hw/arm/virt.c
+index e99a7dd..c85bb46 100644
+--- a/hw/arm/virt.c
++++ b/hw/arm/virt.c
+@@ -1634,6 +1634,16 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
+     return ms->possible_cpus;
+ }
+ 
++static HotplugHandler *virt_get_hotplug_handler(MachineState *machine,
++                                               DeviceState *dev)
++{
++    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
++        return HOTPLUG_HANDLER(machine);
++    }
++
++    return NULL;
++}
++
+ static void virt_machine_class_init(ObjectClass *oc, void *data)
+ {
+     MachineClass *mc = MACHINE_CLASS(oc);
+@@ -1652,6 +1662,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
+     mc->minimum_page_bits = 12;
+     mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
+     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
++    mc->get_hotplug_handler = virt_get_hotplug_handler;
+ }
+ 
+ static const TypeInfo virt_machine_info = {
+@@ -1661,6 +1672,10 @@ static const TypeInfo virt_machine_info = {
+     .instance_size = sizeof(VirtMachineState),
+     .class_size    = sizeof(VirtMachineClass),
+     .class_init    = virt_machine_class_init,
++    .interfaces    = (InterfaceInfo[]) {
++        { TYPE_HOTPLUG_HANDLER },
++        { }
++    },
+ };
+ 
+ static void machvirt_machine_init(void)
+-- 
+2.7.4
+

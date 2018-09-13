@@ -1,0 +1,118 @@
+From 56ce97330b08d01acc56e7a4c4e82d4721ecb136 Mon Sep 17 00:00:00 2001
+From: Li Zhang <zhlcindy@gmail.com>
+Date: Thu, 7 Sep 2017 16:16:38 +0800
+Subject: [RFC PATCH 4/8] Implement pre_plug callback function
+
+This patch is to implement pre_plug function for hotplug.
+
+Signed-off-by: Li Zhang <zhlcindy@gmail.com>
+---
+ hw/arm/virt.c | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 82 insertions(+)
+
+diff --git a/hw/arm/virt.c b/hw/arm/virt.c
+index c85bb46..2c46e84 100644
+--- a/hw/arm/virt.c
++++ b/hw/arm/virt.c
+@@ -1644,9 +1644,90 @@ static HotplugHandler *virt_get_hotplug_handler(MachineState *machine,
+     return NULL;
+ }
+ 
++static int virt_cpuid_cmp(const void *a, const void *b)
++{
++    CPUArchId *cpu_a = (CPUArchId *)a;
++    CPUArchId *cpu_b = (CPUArchId *)b;
++
++    return cpu_a->arch_id - cpu_b->arch_id;
++}
++
++static CPUArchId *virt_find_cpu_slot(MachineState *ms, uint64_t mp_affinity, int *idx)
++{
++    CPUArchId cpu_id, *found_cpu;
++    cpu_id.arch_id = mp_affinity;
++    found_cpu = bsearch(&cpu_id, ms->possible_cpus->cpus,
++                ms->possible_cpus->len, sizeof(*ms->possible_cpus->cpus),
++                virt_cpuid_cmp);
++    if (found_cpu && idx) {
++        *idx = found_cpu - ms->possible_cpus->cpus;
++    }
++    return found_cpu;
++}
++
++static void virt_cpu_pre_plug(HotplugHandler *hotplug_dev,
++                              DeviceState *dev, Error **errp)
++{
++    int idx;
++    int node_id;
++
++    CPUState *cs;
++    CPUArchId *cpu_slot;
++    ARMCPU *cpu = ARM_CPU(dev);
++    MachineState *ms = MACHINE(hotplug_dev);
++    MachineClass *mc = MACHINE_GET_CLASS(ms);
++
++    Error *local_err = NULL;
++
++    if (kvm_enabled()) {
++        error_setg(&local_err, "KVM doesn't support hotplug yet.");
++        goto out;
++    }
++
++    if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
++        error_setg(&local_err, "CPU hotplug not supported for this machine");
++        goto out;
++    }
++
++    cpu_slot = virt_find_cpu_slot(ms, cpu->mp_affinity, &idx);
++    if (!cpu_slot) {
++        error_setg(&local_err, "Can't find CPU slot for cpu.");
++        goto out;
++    }
++
++    cs = CPU(cpu);
++    cs->cpu_index = idx;
++    node_id = cpu_slot->props.node_id;
++    if (!cpu_slot->props.has_node_id) {
++        /* by default CPUState::numa_node was 0 if it's not set via CLI
++         * keep it this way for now but in future we probably should
++         * refuse to start up with incomplete numa mapping */
++        node_id = 0;
++    }
++    if (cs->numa_node == CPU_UNSET_NUMA_NODE_ID) {
++        cs->numa_node = node_id;
++    } else if (cs->numa_node != node_id) {
++        error_setg(errp, "node-id %d must match numa node specified"
++                   "with -numa option for cpu-index %d",
++        cs->numa_node, cs->cpu_index);
++        return;
++    }
++out:
++    error_propagate(errp, local_err);
++}
++
++static void virt_machine_device_pre_plug_cb(HotplugHandler *hotplug_dev,
++                                            DeviceState *dev, Error **errp)
++{
++    if (object_dynamic_cast(OBJECT(dev), TYPE_CPU)) {
++        virt_cpu_pre_plug(hotplug_dev, dev, errp);
++    }
++}
++
+ static void virt_machine_class_init(ObjectClass *oc, void *data)
+ {
+     MachineClass *mc = MACHINE_CLASS(oc);
++    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+ 
+     mc->init = machvirt_init;
+     /* Start max_cpus at the maximum QEMU supports. We'll further restrict
+@@ -1663,6 +1744,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
+     mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
+     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
+     mc->get_hotplug_handler = virt_get_hotplug_handler;
++    hc->pre_plug = virt_machine_device_pre_plug_cb;
+ }
+ 
+ static const TypeInfo virt_machine_info = {
+-- 
+2.7.4
+
